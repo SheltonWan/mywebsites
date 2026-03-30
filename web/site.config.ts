@@ -16,31 +16,31 @@ export const siteConfig = {
   // 替换为本地路径（如 /images/logo.png）或保持远程 URL
   images: {
     logo: "/images/logo.png", // 替换为实际 logo 路径
-    heroMockup: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/7.png",
+    heroMockup: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/7.webp",
     screenshots: [
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/1.png",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/1.webp",
         alt: "登录界面",
       },
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/7.png",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/7.webp",
         alt: "聊天界面",
       },
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/2.png",
-        alt: "社区推荐",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/2.webp",
+        alt: "通讯列表",
       },
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/8.png",
-        alt: "个人详情",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/4.webp",
+        alt: "聊天列表",
       },
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/9.png",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/9.webp",
         alt: "个人中心",
       },
       {
-        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/3.png",
-        alt: "文章阅读",
+        src: "https://withyou-1256315836.cos.ap-guangzhou.myqcloud.com/snapshots/3.webp",
+        alt: "发现界面",
       },
     ],
   },

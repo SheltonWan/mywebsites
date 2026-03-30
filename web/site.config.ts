@@ -184,6 +184,14 @@ export const siteConfig = {
     { label: "下载", href: "/download" },
   ],
 
+  // ==================== 统计服务配置 ====================
+  // 后端统计 API 地址，留空则不上报（本地开发）
+  // 部署时设置为实际的后端服务地址，例如 "https://api.example.com"
+  statsApiBase: process.env.NEXT_PUBLIC_STATS_API_URL ?? '',
+
+  // 当前网站的 site_id，多站点接入时各站点使用不同的值
+  statsSiteId: 'iwithyou_web',
+
   // ==================== 联系信息 ====================
   contact: {
     email: "smartv@qq.com",

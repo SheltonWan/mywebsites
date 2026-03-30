@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { siteConfig } from "@/site.config";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,7 +26,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className="min-h-screen flex flex-col">{children}</body>
+      <body className="min-h-screen flex flex-col">
+        <Suspense fallback={null}>
+          <AnalyticsProvider />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

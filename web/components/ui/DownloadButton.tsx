@@ -1,3 +1,7 @@
+'use client';
+
+import { trackDownload } from '@/lib/analytics';
+
 export function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
   if (platform === "ios") {
     // Smartphone / iPhone icon
@@ -51,6 +55,7 @@ export default function DownloadButton({ platform, label, url, primary }: Downlo
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackDownload(platform)}
       className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
         primary
           ? "bg-brand-500 border-brand-500 text-white hover:bg-brand-600"

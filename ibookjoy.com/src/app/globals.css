@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ===== 约享平台 Brand Theme ===== */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Brand Colors */
+  --color-brand-50: #EBF3FB;
+  --color-brand-100: #D0E3F6;
+  --color-brand-200: #A1C7ED;
+  --color-brand-300: #72ABE4;
+  --color-brand-400: #4A90D9;
+  --color-brand-500: #3172B8;
+  --color-brand-600: #265A92;
+  --color-brand-700: #1C436D;
+  --color-brand-800: #132D49;
+  --color-brand-900: #091624;
+
+  /* Industry Colors */
+  --color-fitness: #FED202;
+  --color-beauty: #FF6B9D;
+  --color-education: #4A90D9;
+  --color-healthcare: #00B894;
+  --color-housekeeping: #FF9F43;
+  --color-youth: #00C9A7;
+
+  /* Status Colors */
+  --color-success: #07C160;
+  --color-warning: #FF9500;
+  --color-danger: #FA5151;
+  --color-info: #10AEFF;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Industry card hover border via CSS variable */
+.group:hover {
+  border-color: var(--hover-border, transparent);
+}

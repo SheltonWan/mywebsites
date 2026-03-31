@@ -13,8 +13,8 @@ echo "==> 构建 ibookjoy.com 静态文件..."
 npm run build
 # 产物在 out/
 
-echo "==> 同步到服务器 /opt/iwithyou/static/mini/ ..."
-rsync -avz --delete out/ root@"$SERVER_IP":/opt/iwithyou/static/mini/
+echo "==> 同步到服务器 /opt/iwithyou/static/ibookjoy/ ..."
+rsync -avz --delete out/ root@"$SERVER_IP":/opt/iwithyou/static/ibookjoy/
 
 echo "==> 重载 Nginx..."
 ssh root@"$SERVER_IP" "docker compose -f /opt/iwithyou/docker-compose.yml exec nginx nginx -s reload"

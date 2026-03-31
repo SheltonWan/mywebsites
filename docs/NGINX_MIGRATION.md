@@ -27,9 +27,10 @@ Internet :80/:443
  [Nginx 容器]
     ├── sangogame.com         → /var/www/sangogame/
     │       └── /sangoplay/   → /var/www/sangoplay/
-    ├── ibookjoy.com          → /var/www/mini/
+    ├── ibookjoy.com          → /var/www/ibookjoy/
     └── ycwithyou.com         → /var/www/ycwithyou/
-            └── /api/*        → backend:8080 (内网)
+            ├── /api/*        → backend:8080 (内网)
+            └── /ws/chat/*    → backend:8080 (内网, WebSocket)
 
  [backend 容器] :8080 — 仅内网，不对外绑定端口
  [certbot 容器]         — Let's Encrypt 证书自动申请/续签
@@ -43,8 +44,8 @@ Internet :80/:443
 |---|---|---|---|
 | `sangogame.com` | `sangogame.com/out/` | `/opt/iwithyou/static/sangogame/` | 无 |
 | `sangogame.com/sangoplay/` | `backend/sangoplay/`（Flutter build） | `/opt/iwithyou/static/sangoplay/` | 无 |
-| `ibookjoy.com` | `ibookjoy.com/out/` | `/opt/iwithyou/static/mini/` | 无 |
-| `ycwithyou.com` | `ycwithyou.com/out/` | `/opt/iwithyou/static/ycwithyou/` | `/api/*` → backend:8080 |
+| `ibookjoy.com` | `ibookjoy.com/out/` | `/opt/iwithyou/static/ibookjoy/` | 无 |
+| `ycwithyou.com` | `ycwithyou.com/out/` | `/opt/iwithyou/static/ycwithyou/` | `/api/*` 和 `/ws/chat/*` → backend:8080 |
 
 ---
 
@@ -66,6 +67,186 @@ Internet :80/:443
 | `ibookjoy.com/next.config.ts` | 修改 | 删除 basePath（根路径部署） |
 | `backend/Dockerfile` | 修改 | 删除 4 个静态文件 COPY |
 | `backend/bin/server.dart` | 修改 | 删除 shelf_static 路由挂载 |
+| `frontend/scripts/version_config.conf` | 修改 | 服务器 URL 改为 https:// |
+| `frontend/scripts/upload_version.sh` | 修改 | 默认服务器 URL 改为 https:// |
+
+---
+
+## 服务器环境要求
+
+在开始任何服务器操作前，按以下清单逐项检查，全部通过再继续。
+
+---
+
+### 📋 本地机器检查（执行部署脚本的机器）
+
+**L1. 设置 SERVER_IP 环境变量（所有脚本的前提）**
+
+```bash
+export SERVER_IP=<服务器公网IP>
+echo $SERVER_IP   # 确认非空
+```
+
+**L2. SSH 免密登录已配置**
+
+```bash
+ssh root@$SERVER_IP "echo ok"
+# 期望：直接返回 ok，无密码提示
+```
+
+如需配置：
+```bash
+ssh-copy-id root@$SERVER_IP
+```
+
+**L3. rsync 已安装（deploy.sh 依赖）**
+
+```bash
+rsync --version
+# 期望：rsync version 3.x.x
+```
+
+macOS 默认自带，如缺失：`brew install rsync`
+
+---
+
+### 📋 服务器端检查（SSH 登录后执行）
+
+**S1. Docker Engine 已安装且运行（必须 ≥ 20.10）**
+
+```bash
+systemctl status docker | grep Active
+docker --version
+# 期望：Active: active (running)，Docker version 20.10+
+```
+
+如未安装：https://docs.docker.com/engine/install/
+
+**S2. Docker Compose Plugin v2（必须，使用 `docker compose` 而非 `docker-compose`）**
+
+```bash
+docker compose version
+# 期望：Docker Compose version v2.x.x
+```
+
+> ⚠️ 本方案所有命令均使用 `docker compose`（v2 plugin），不兼容旧版 `docker-compose`（v1）。
+> 如返回 "command not found"，安装方式：
+> ```bash
+> # Ubuntu/Debian
+> apt-get install docker-compose-plugin
+> # CentOS/RHEL
+> yum install docker-compose-plugin
+> ```
+
+**S3. 端口 80 / 443 未被占用，且宿主机无系统级 Nginx**
+
+```bash
+ss -tlnp | grep -E ':80\b|:443\b'
+# 期望：无任何输出（表示端口空闲）
+```
+
+如有占用，先确认是否为宿主机 Nginx（会与 Docker nginx 容器冲突）：
+
+```bash
+systemctl status nginx 2>/dev/null || echo "no system nginx"
+
+# 如有，停止并禁用开机自启
+systemctl stop nginx && systemctl disable nginx
+```
+
+其他占用进程（如旧容器）在 Phase 3 停止旧容器后会自动释放。
+
+**S4. 云安全组已开放 80 / 443 端口**
+
+> ⚠️ 这是最常见的踩坑点。`ss` 只看 OS 层端口，云厂商安全组是外层防火墙，两者独立。
+>
+> **腾讯云操作路径**：轻量服务器控制台 → 防火墙 → 添加规则：
+> - 协议 TCP，端口 80，来源 0.0.0.0/0
+> - 协议 TCP，端口 443，来源 0.0.0.0/0
+
+验证安全组是否生效（在**本地机器**执行）：
+
+```bash
+nc -zv $SERVER_IP 80
+nc -zv $SERVER_IP 443
+# 期望：Connection to ... succeeded（或 refused 但非 timeout，timeout = 安全组未放行）
+```
+
+**S5. 系统防火墙未拦截 80 / 443**
+
+```bash
+# 检查 ufw
+ufw status 2>/dev/null | grep -E '80|443|Status'
+
+# 检查 firewalld
+firewall-cmd --list-ports 2>/dev/null
+
+# 如有拦截，放行：
+ufw allow 80/tcp && ufw allow 443/tcp
+```
+
+**S6. 系统时间同步正常（Let's Encrypt 要求误差 < 2 分钟）**
+
+```bash
+timedatectl status | grep -E 'Local time|synchronized'
+# 期望：System clock synchronized: yes
+```
+
+如未同步：
+
+```bash
+# Ubuntu/Debian
+apt-get install -y ntp && systemctl enable --now ntp
+
+# 或手动同步
+ntpdate -u pool.ntp.org
+```
+
+**S7. 服务器可访问公网（拉取 Docker 镜像需要）**
+
+```bash
+curl -I https://registry-1.docker.io --max-time 10
+# 期望：HTTP/2 200 或 301（能连通即可）
+```
+
+如有限速或超时，可配置国内镜像加速器（腾讯云服务器推荐使用自带的镜像源）。
+
+**S8. Tencent CCR 私有仓库登录（backend 镜像来源）**
+
+```bash
+docker login ccr.ccs.tencentyun.com
+# 输入腾讯云账号的访问密钥（非控制台密码）
+```
+
+验证可拉取镜像：
+
+```bash
+docker pull ccr.ccs.tencentyun.com/ephnic/newserver:latest
+# 期望：Pull complete，无 authentication required 报错
+```
+
+**S9. 磁盘空间（建议 /opt 下 ≥ 5GB 可用）**
+
+```bash
+df -h /opt
+# 期望：Avail ≥ 5G
+```
+
+**S10. 内存（建议 ≥ 1GB 可用）**
+
+```bash
+free -h
+# 期望：available ≥ 1G
+```
+
+**S11. 记录当前运行容器（操作前留档，用于回滚）**
+
+```bash
+docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Ports}}\t{{.Names}}"
+```
+
+> 记录旧容器 ID，Phase 3 停止前不要删除。
+
 
 ---
 
@@ -110,7 +291,26 @@ Internet :80/:443
 
 ---
 
-### Phase 2 — 服务器初始化（SSH 登录执行）
+### Phase 2 — DNS 解析配置 ✅ 已完成
+
+三个域名已在腾讯云 DNS 解析控制台完成 A 记录配置，均解析到服务器公网 IP。
+
+SSL 证书已通过腾讯云 SSL 控制台申请完成（见 Phase 5）。
+
+验证命令（确认解析生效）：
+
+```bash
+nslookup sangogame.com
+nslookup ibookjoy.com
+nslookup ycwithyou.com
+# 三个域名均应返回服务器公网 IP
+```
+
+---
+
+### Phase 3 — 服务器初始化（SSH 登录执行）
+
+> **前提**：Phase 2 DNS 解析已生效，`nslookup 域名` 能正确返回服务器 IP。
 
 ```bash
 # 登录服务器
@@ -118,8 +318,8 @@ ssh root@$SERVER_IP
 
 # 创建目录结构
 mkdir -p /opt/iwithyou/nginx/conf.d
-mkdir -p /opt/iwithyou/certbot/{conf,www}
-mkdir -p /opt/iwithyou/static/{sangogame,sangoplay,mini,ycwithyou}
+mkdir -p /opt/iwithyou/certs/{sangogame.com,ibookjoy.com,ycwithyou.com}
+mkdir -p /opt/iwithyou/static/{sangogame,sangoplay,ibookjoy,ycwithyou}
 mkdir -p /opt/iwithyou/uploads
 
 # 停止旧容器（先记录容器 ID）
@@ -130,15 +330,17 @@ docker stop <old_container_id>
 
 ---
 
-### Phase 3 — 上传配置文件（本地执行）
+### Phase 4 — 上传配置文件（本地执行）
 
 ```bash
 cd /Users/wanxt/app/iwithyou/backend/deploy
 
-# 上传 docker-compose 和 nginx 配置
+# 上传 docker-compose 和启动脚本
 scp docker-compose.yml root@$SERVER_IP:/opt/iwithyou/
-scp -r nginx/conf.d root@$SERVER_IP:/opt/iwithyou/nginx/
 scp run_compose.sh root@$SERVER_IP:/opt/iwithyou/
+
+# 上传 Nginx 配置（已是正式 HTTPS 配置，可直接上传）
+scp -r nginx/conf.d root@$SERVER_IP:/opt/iwithyou/nginx/
 
 # 上传服务器端 .env（从 .env_remote 复制，敏感信息不要提交 git）
 scp ../.env_remote root@$SERVER_IP:/opt/iwithyou/.env
@@ -146,59 +348,72 @@ scp ../.env_remote root@$SERVER_IP:/opt/iwithyou/.env
 
 ---
 
-### Phase 4 — 申请 Let's Encrypt SSL 证书
+### Phase 5 — 上传腾讯云 SSL 证书
 
-**4.1 启动 HTTP-only 临时 Nginx（用于 acme-challenge 验证）**
+> SSL 证书已在腾讯云控制台申请完成，此步骤将本地证书文件上传到服务器并挂载到 nginx 容器。
 
-```bash
-ssh root@$SERVER_IP
-cd /opt/iwithyou
+**5.1 从腾讯云控制台下载证书**
 
-# 临时启动 nginx（此时 nginx 配置仅包含 80 端口 acme-challenge 验证）
-docker compose up -d nginx
+腾讯云控制台 → SSL 证书 → 证书列表 → 下载，选择 **Nginx** 格式。
+
+下载后解压，每个域名得到一个目录，内含两个文件：
+
+```
+域名_nginx/
+    └── 域名_bundle.crt   ← 证书链（包含中间证书）
+    └── 域名.key           ← 私鉅
 ```
 
-**4.2 为每个域名申请证书（在服务器执行，共 3 次）**
+**5.2 将证书放到规范目录**
+
+在本地整理指定目录结构（与 docker-compose.yml 挂载路径对应）：
 
 ```bash
-# sangogame.com
-docker compose run --rm certbot certonly --webroot \
-  -w /var/www/certbot \
-  -d sangogame.com -d www.sangogame.com \
-  --email your@email.com --agree-tos --no-eff-email
+# 本地在 backend/deploy/ 下创建 certs 目录
+mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/sangogame.com
+mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/ibookjoy.com
+mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/ycwithyou.com
 
-# ibookjoy.com
-docker compose run --rm certbot certonly --webroot \
-  -w /var/www/certbot \
-  -d ibookjoy.com -d www.ibookjoy.com \
-  --email your@email.com --agree-tos --no-eff-email
+# 将下载的证书文件复制到对应目录
+# 以 sangogame.com 为例：
+cp 下载路径/sangogame.com_nginx/sangogame.com_bundle.crt \
+   certs/sangogame.com/
+cp 下载路径/sangogame.com_nginx/sangogame.com.key \
+   certs/sangogame.com/
 
-# ycwithyou.com
-docker compose run --rm certbot certonly --webroot \
-  -w /var/www/certbot \
-  -d ycwithyou.com -d www.ycwithyou.com \
-  --email your@email.com --agree-tos --no-eff-email
+# ibookjoy.com 和 ycwithyou.com 同理
 ```
 
-**4.3 切换到 HTTPS 配置，重载**
+> ⚠️ `certs/` 目录包含私鉅，已在 `.gitignore` 中排除，不要提交到 git。
+
+**5.3 上传证书到服务器**
 
 ```bash
-# 将 nginx/conf.d/ 里的配置替换为 HTTPS 完整版
-docker compose exec nginx nginx -t   # 验证配置语法
-docker compose exec nginx nginx -s reload
+cd /Users/wanxt/app/iwithyou/backend/deploy
+
+# 在服务器创建 certs 目录
+ssh root@$SERVER_IP "mkdir -p /opt/iwithyou/certs"
+
+# 上传全部证书
+scp -r certs/ root@$SERVER_IP:/opt/iwithyou/
 ```
 
-**4.4 设置自动续签（服务器 crontab）**
+**5.4 证书有效期管理**
 
-```bash
-crontab -e
-# 加入以下行（每天凌晨 3:10 检查，证书到期前 30 天自动续签）
-10 3 * * * cd /opt/iwithyou && docker compose run --rm certbot renew --quiet && docker compose exec nginx nginx -s reload
-```
+腾讯云 SSL 证书到期后需要手动或自动续费。副作用：证书延期即中断 HTTPS。
+
+建议在证书到期前 30 天更新证书文件：
+1. 腾讯云控制台续费/重新申请 → 下载新证书
+2. 替换本地 `certs/` 下对应文件
+3. 重新执行 5.3 上传命令
+4. 服务器执行：
+   ```bash
+   docker compose exec nginx nginx -s reload
+   ```
 
 ---
 
-### Phase 5 — 首次部署静态文件（本地执行）
+### Phase 6 — 首次部署静态文件（本地执行）
 
 ```bash
 # sangogame.com
@@ -220,7 +435,7 @@ bash deploy_sangoplay.sh
 
 ---
 
-### Phase 6 — 启动完整服务（服务器执行）
+### Phase 7 — 启动完整服务（服务器执行）
 
 ```bash
 cd /opt/iwithyou
@@ -233,13 +448,13 @@ docker compose ps
 curl -I https://sangogame.com
 curl -I https://ibookjoy.com
 curl -I https://ycwithyou.com
-curl https://ycwithyou.com/api/health
+curl https://ycwithyou.com/api/version/latest
 curl https://sangogame.com/sangoplay/
 ```
 
 ---
 
-### Phase 7 — 更新 release.command（后端发布流程）
+### Phase 8 — 更新 release.command（后端发布流程）
 
 `release.command` 末尾 SSH 调用改为：
 
@@ -250,7 +465,7 @@ sshpass -p "$SERVER_PASSWORD" ssh root@$SERVER_IP "$REMOTE_SCRIPT"
 
 ---
 
-### Phase 8 — 清理旧容器
+### Phase 9 — 清理旧容器
 
 验证所有站点正常后：
 
@@ -272,8 +487,22 @@ docker rmi <old_image_id>      # 清理旧镜像（可选）
 | sangoplay 子路径 | `curl https://sangogame.com/sangoplay/` | Flutter web index |
 | ibookjoy 主页 | `curl https://ibookjoy.com/` | Next.js 静态 HTML |
 | ycwithyou 主页 | `curl https://ycwithyou.com/` | Next.js 静态 HTML |
-| API 代理 | `curl https://ycwithyou.com/api/health` | `{"status":"ok"}` |
+| API 代理 | `curl https://ycwithyou.com/api/version/latest` | `{"version":"..."}` |
+| WebSocket 握手 | 见下方命令 | `101 Switching Protocols` |
 | backend 不对外暴露 | `curl http://<SERVER_IP>:8080` | 连接拒绝 |
+
+**WebSocket 握手验证命令：**
+
+```bash
+curl --http1.1 -i \
+  -H "Upgrade: websocket" \
+  -H "Connection: Upgrade" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  -H "Sec-WebSocket-Version: 13" \
+  "https://ycwithyou.com/ws/chat/test?name=probe"
+# 期望返回 101 Switching Protocols
+# 注意：必须强制 HTTP/1.1，HTTP/2 不支持 Upgrade 握手
+```
 
 ---
 

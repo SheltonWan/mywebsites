@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 import { BRAND } from "@/lib/site.config";
 import "./globals.css";
 
@@ -35,6 +37,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <AnalyticsProvider />
+        </Suspense>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

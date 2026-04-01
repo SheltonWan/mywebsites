@@ -103,7 +103,7 @@ export default function StatsPage() {
   }
 
   const dl = summary?.downloads ?? {};
-  const platforms = ['ios', 'android', 'mac', 'windows'];
+  const platforms = ['ios', 'android', 'mac', 'windows', 'web'];
 
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4">

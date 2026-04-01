@@ -75,7 +75,7 @@ export const PROMO_CONFIG: PromoConfig = {
     macos_arm:   'https://sango-1256315836.cos.ap-guangzhou.myqcloud.com/%E5%8D%A7%E9%BE%99%E9%A3%8E%E4%BA%91-1.0.0-AppleSilicon.dmg',
     macos_intel: 'https://sango-1256315836.cos.ap-guangzhou.myqcloud.com/%E5%8D%A7%E9%BE%99%E9%A3%8E%E4%BA%91-1.0.0-Intel.dmg',
     windows:     'https://sango-1256315836.cos.ap-guangzhou.myqcloud.com/sango-windows-1.0.0-setup.exe',
-    web:         'https://www.sangogame.com/sangoplay',
+    web: 'https://play.sangogame.com',
   },
 
   contact: {

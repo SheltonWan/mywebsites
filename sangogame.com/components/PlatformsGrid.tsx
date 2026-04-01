@@ -22,7 +22,7 @@ export default function PlatformsGrid() {
           多端畅玩
         </h2>
         <p className="text-center text-sango-text-dim mb-12">
-          支持 iOS · Android · Web 全平台，随时随地运筹帷幄
+          支持 iOS · Android · Mac · Windows · Web 多端，随时随地运筹帷幄
         </p>
 
         <div className="flex flex-wrap justify-center gap-6">

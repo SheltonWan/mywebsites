@@ -61,10 +61,10 @@ export default function StatsSection() {
   }, []);
 
   const items = [
-    { count: 150, unit: '幅', label: '精心设计地图', showPlus: true },
-    { count: 6,   unit: '大', label: '战役剧本',      showPlus: false },
-    { count: 70,  unit: '位', label: '历史名将',      showPlus: true },
-    { count: 4,   unit: '大', label: '可选势力',      showPlus: false },
+    { count: 190, unit: '座', label: '历史城池', showPlus: true },
+    { count: 4, unit: '大', label: '经典剧本', showPlus: false },
+    { count: 150, unit: '位', label: '历史名将', showPlus: true },
+    { count: 22, unit: '个', label: '可选势力', showPlus: false },
   ];
 
   // Override with config data where available
@@ -76,12 +76,13 @@ export default function StatsSection() {
   });
 
   return (
-    <section ref={sectionRef} id="stats" className="py-20 bg-sango-bg">
+    <section ref={sectionRef} id="stats" className="py-20 bg-sango-surface">
       <div className="max-w-5xl mx-auto px-6">
-        <h2 className="font-heading text-3xl font-bold text-sango-gold mb-10 flex items-center justify-center gap-2">
+        <h2 className="font-heading text-3xl font-bold text-sango-gold mb-3 flex items-center justify-center gap-2">
           <BarChart3 className="w-8 h-8 flex-none" />
           数据一览
         </h2>
+        <p className="text-center text-sango-text-dim mb-10">一组数字，见证三国战略的深度</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {items.map((item) => (
             <StatCard key={item.label} {...item} active={active} />

@@ -11,7 +11,7 @@ const CITY_TYPES = [
 
 export default function WorldMap() {
   return (
-    <section id="world" className="py-20 bg-sango-surface">
+    <section id="world" className="py-20 bg-sango-bg">
       <div className="max-w-6xl mx-auto px-6">
         <h2 className="font-heading text-3xl font-bold text-sango-gold mb-3 flex items-center justify-center gap-2">
           <Map className="w-8 h-8 flex-none" />

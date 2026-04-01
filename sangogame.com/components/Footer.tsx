@@ -12,7 +12,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="flex items-center gap-2.5">
             <Image
-              src="/assets/logo.png"
+              src="/assets/logo.webp"
               alt="卧龙风云"
               width={28}
               height={28}

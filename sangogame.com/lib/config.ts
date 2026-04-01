@@ -130,10 +130,10 @@ export const PROMO_CONFIG: PromoConfig = {
   ],
 
   stats: [
-    { count: 150, label: '历史城池', showPlus: true  },
-    { count: 6,   label: '城池类型', showPlus: false },
-    { count: 70,  label: '名将武将', showPlus: true  },
-    { count: 4,   label: '历史剧本', showPlus: false },
+    { count: 190, label: '历史城池', showPlus: true },
+    { count: 4, label: '经典剧本', showPlus: false },
+    { count: 150, label: '历史名将', showPlus: true },
+    { count: 22, label: '可选势力', showPlus: false },
   ],
 
   faqItems: [

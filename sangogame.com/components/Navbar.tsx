@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 const NAV_LINKS = [
-  { href: '/#features',  label: '核心玩法' },
+  { href: '/#screenshots', label: '游戏截图' },
+  { href: '/#features', label: '核心玩法' },
   { href: '/#scenarios', label: '历史剧本' },
-  { href: '/#officers',  label: '名将风云' },
-  { href: '/#world',     label: '三国地图' },
+  { href: '/#officers', label: '名将风云' },
   { href: '/#platforms', label: '下载游戏' },
-  { href: '/support/',   label: '玩家支持' },
+  { href: '/support/', label: '玩家支持' },
 ];
 
 export default function Navbar() {

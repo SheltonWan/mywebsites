@@ -26,7 +26,8 @@ Internet :80/:443
     │
  [Nginx 容器]
     ├── sangogame.com         → /var/www/sangogame/
-    │       └── /sangoplay/   → /var/www/sangoplay/
+    │       └── /sangoplay/   → 301 重定向到 play.sangogame.com
+    ├── play.sangogame.com    → /var/www/sangoplay/
     ├── ibookjoy.com          → /var/www/ibookjoy/
     └── ycwithyou.com         → /var/www/ycwithyou/
             ├── /api/*        → backend:8080 (内网)
@@ -43,7 +44,7 @@ Internet :80/:443
 | 域名 | 静态内容来源 | 服务器目录 | API 代理 |
 |---|---|---|---|
 | `sangogame.com` | `sangogame.com/out/` | `/opt/iwithyou/static/sangogame/` | 无 |
-| `sangogame.com/sangoplay/` | `backend/sangoplay/`（Flutter build） | `/opt/iwithyou/static/sangoplay/` | 无 |
+| `play.sangogame.com` | `backend/sangoplay/`（Flutter build） | `/opt/iwithyou/static/sangoplay/` | 无 |
 | `ibookjoy.com` | `ibookjoy.com/out/` | `/opt/iwithyou/static/ibookjoy/` | 无 |
 | `ycwithyou.com` | `ycwithyou.com/out/` | `/opt/iwithyou/static/ycwithyou/` | `/api/*` 和 `/ws/chat/*` → backend:8080 |
 
@@ -57,6 +58,7 @@ Internet :80/:443
 |---|---|---|
 | `backend/deploy/docker-compose.yml` | 新增 | 服务编排，上传到服务器 |
 | `backend/deploy/nginx/conf.d/sangogame.conf` | 新增 | sangogame.com Nginx 配置 |
+| `backend/deploy/nginx/conf.d/sangoplay.conf` | 新增 | play.sangogame.com Nginx 配置 |
 | `backend/deploy/nginx/conf.d/ibookjoy.conf` | 新增 | ibookjoy.com Nginx 配置 |
 | `backend/deploy/nginx/conf.d/ycwithyou.conf` | 新增 | ycwithyou.com Nginx 配置 |
 | `backend/deploy/run_compose.sh` | 新增 | 替换服务器上的 run_New.sh |
@@ -293,7 +295,9 @@ docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Ports}}\t{{.Names}}"
 
 ### Phase 2 — DNS 解析配置 ✅ 已完成
 
-三个域名已在腾讯云 DNS 解析控制台完成 A 记录配置，均解析到服务器公网 IP。
+三个域名及 sangoplay 子域名已在腾讯云 DNS 解析控制台完成 A 记录配置，均解析到服务器公网 IP。
+
+> `play.sangogame.com` 需单独添加一条 A 记录：主机记录 `play`，记录值填服务器公网 IP。
 
 SSL 证书已通过腾讯云 SSL 控制台申请完成（见 Phase 5）。
 
@@ -301,9 +305,10 @@ SSL 证书已通过腾讯云 SSL 控制台申请完成（见 Phase 5）。
 
 ```bash
 nslookup sangogame.com
+nslookup play.sangogame.com
 nslookup ibookjoy.com
 nslookup ycwithyou.com
-# 三个域名均应返回服务器公网 IP
+# 四个域名均应返回服务器公网 IP
 ```
 
 ---
@@ -318,7 +323,7 @@ ssh root@$SERVER_IP
 
 # 创建目录结构
 mkdir -p /opt/iwithyou/nginx/conf.d
-mkdir -p /opt/iwithyou/certs/{sangogame.com,ibookjoy.com,ycwithyou.com}
+mkdir -p /opt/iwithyou/certs/{sangogame.com,play.sangogame.com,ibookjoy.com,ycwithyou.com}
 mkdir -p /opt/iwithyou/static/{sangogame,sangoplay,ibookjoy,ycwithyou}
 mkdir -p /opt/iwithyou/uploads
 
@@ -371,6 +376,7 @@ scp ../.env_remote root@$SERVER_IP:/opt/iwithyou/.env
 ```bash
 # 本地在 backend/deploy/ 下创建 certs 目录
 mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/sangogame.com
+mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/play.sangogame.com
 mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/ibookjoy.com
 mkdir -p /Users/wanxt/app/iwithyou/backend/deploy/certs/ycwithyou.com
 
@@ -380,6 +386,12 @@ cp 下载路径/sangogame.com_nginx/sangogame.com_bundle.crt \
    certs/sangogame.com/
 cp 下载路径/sangogame.com_nginx/sangogame.com.key \
    certs/sangogame.com/
+
+# play.sangogame.com（单独申请的免费证书）：
+cp 下载路径/play.sangogame.com_nginx/play.sangogame.com_bundle.crt \
+   certs/play.sangogame.com/
+cp 下载路径/play.sangogame.com_nginx/play.sangogame.com.key \
+   certs/play.sangogame.com/
 
 # ibookjoy.com 和 ycwithyou.com 同理
 ```
@@ -446,10 +458,11 @@ docker compose up -d
 # 验证
 docker compose ps
 curl -I https://sangogame.com
+curl -I https://play.sangogame.com
 curl -I https://ibookjoy.com
 curl -I https://ycwithyou.com
 curl https://ycwithyou.com/api/version/latest
-curl https://sangogame.com/sangoplay/
+curl https://play.sangogame.com/
 ```
 
 ---
@@ -484,7 +497,8 @@ docker rmi <old_image_id>      # 清理旧镜像（可选）
 | HTTP → HTTPS 重定向 | `curl -I http://sangogame.com` | `301 → https://` |
 | HTTPS 证书有效 | `curl -I https://sangogame.com` | `200 OK` |
 | sangogame 主页 | `curl https://sangogame.com/` | Next.js 静态 HTML |
-| sangoplay 子路径 | `curl https://sangogame.com/sangoplay/` | Flutter web index |
+| sangoplay 主页 | `curl https://play.sangogame.com/` | Flutter web index |
+| sangogame.com/sangoplay 重定向 | `curl -I https://sangogame.com/sangoplay/` | `301 → https://play.sangogame.com/` |
 | ibookjoy 主页 | `curl https://ibookjoy.com/` | Next.js 静态 HTML |
 | ycwithyou 主页 | `curl https://ycwithyou.com/` | Next.js 静态 HTML |
 | API 代理 | `curl https://ycwithyou.com/api/version/latest` | `{"version":"..."}` |

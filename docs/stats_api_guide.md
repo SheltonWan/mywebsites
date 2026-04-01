@@ -80,7 +80,7 @@ Content-Type: application/json
 | 字段 | 必填 | 可选值 |
 |------|------|--------|
 | `site_id` | ✅ | 站点标识 |
-| `platform` | ✅ | `ios` / `android` / `mac` / `windows` |
+| `platform` | ✅ | `ios` / `android` / `mac` / `windows` / `web` |
 | `referrer` | 否 | 同上 |
 
 ---

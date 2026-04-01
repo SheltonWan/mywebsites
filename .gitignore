@@ -1,0 +1,35 @@
+# ===== sangogame.com =====
+sangogame.com/node_modules/
+sangogame.com/.next/
+sangogame.com/out/
+sangogame.com/build/
+sangogame.com/.env*
+sangogame.com/.vercel
+sangogame.com/*.tsbuildinfo
+sangogame.com/.DS_Store
+
+# ===== ibookjoy.com =====
+ibookjoy.com/node_modules/
+ibookjoy.com/.next/
+ibookjoy.com/out/
+ibookjoy.com/build/
+ibookjoy.com/coverage/
+ibookjoy.com/.env*
+ibookjoy.com/.vercel
+ibookjoy.com/*.tsbuildinfo
+ibookjoy.com/*.pem
+ibookjoy.com/.DS_Store
+
+# ===== ycwithyou.com =====
+ycwithyou.com/node_modules/
+ycwithyou.com/.next/
+ycwithyou.com/out/
+ycwithyou.com/build/
+ycwithyou.com/.env*
+ycwithyou.com/.vercel
+ycwithyou.com/*.tsbuildinfo
+ycwithyou.com/*.pem
+ycwithyou.com/.DS_Store
+
+# ===== 通用 =====
+.DS_Store

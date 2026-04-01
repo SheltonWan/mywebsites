@@ -1,6 +1,8 @@
 import Footer from '@/components/Footer';
 import Navbar from '@/components/Navbar';
+import AnalyticsProvider from '@/components/AnalyticsProvider';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import '../styles/globals.css';
 
 export const metadata: Metadata = {
@@ -36,6 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-sango-bg text-sango-text font-body antialiased overflow-x-hidden">
+        <Suspense fallback={null}>
+          <AnalyticsProvider />
+        </Suspense>
         <Navbar />
         <main>{children}</main>
         <Footer />

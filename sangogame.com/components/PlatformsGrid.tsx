@@ -1,3 +1,6 @@
+'use client';
+
+import { trackDownload } from '@/lib/analytics';
 import { PROMO_CONFIG } from '@/lib/config';
 import { getPlatformLinkInfo } from '@/lib/getPlatformLink';
 import { Smartphone } from 'lucide-react';
@@ -26,13 +29,14 @@ export default function PlatformsGrid() {
           {entries.map(([, url]) => {
             const info = getPlatformLinkInfo(url);
             if (!info) return null;
-            const { label, isBeta } = info;
+            const { label, isBeta, platformKey } = info;
             return (
               <Link
                 key={url}
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => { if (platformKey) trackDownload(platformKey); }}
                 className="relative inline-flex items-center gap-3 px-8 py-4
                   bg-sango-card border border-sango-border rounded-xl
                   font-heading font-semibold text-sango-text

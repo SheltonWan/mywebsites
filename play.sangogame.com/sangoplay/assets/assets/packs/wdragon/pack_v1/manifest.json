@@ -1,0 +1,19 @@
+{
+  "id": "wdragon",
+  "version": 1,
+  "generatedAt": "2026-01-17",
+  "dataFiles": [
+    {
+      "kind": "cities_master",
+      "path": "assets/packs/wdragon/pack_v1/data/cities.json"
+    },
+    {
+      "kind": "officers",
+      "path": "assets/packs/wdragon/pack_v1/data/officers.json"
+    },
+    {
+      "kind": "scenarios",
+      "path": "assets/packs/wdragon/pack_v1/data/scenarios.json"
+    }
+  ]
+}

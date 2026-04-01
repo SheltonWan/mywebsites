@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="卧龙风云 - 三国策略游戏">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="卧龙风云">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>卧龙风云</title>
+  <link rel="manifest" href="manifest.json">
+<style>
+  /* ── 加载画面样式 ── */
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #1a1a2e;
+    overflow: hidden;
+  }
+
+  #loading-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #16213e 0%, #0f0f23 70%, #0a0a1a 100%);
+    transition: opacity 0.6s ease;
+  }
+
+  #loading-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #loading-logo {
+    width: 120px;
+    height: 120px;
+    border-radius: 24px;
+    box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+    margin-bottom: 32px;
+    animation: logo-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes logo-pulse {
+
+    0%,
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+    }
+
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 0 60px rgba(212, 175, 55, 0.5);
+    }
+  }
+
+  #loading-title {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", serif;
+    font-size: 28px;
+    font-weight: bold;
+    color: #d4af37;
+    letter-spacing: 8px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  }
+
+  #loading-subtitle {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    color: #8899aa;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+  }
+
+  /* 进度条容器 */
+  #loading-bar-wrapper {
+    width: 260px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  #loading-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #d4af37, #f0d060, #d4af37);
+    background-size: 200% 100%;
+    border-radius: 2px;
+    animation: bar-shimmer 1.5s linear infinite;
+    transition: width 0.3s ease;
+  }
+
+  @keyframes bar-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  #loading-status {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 12px;
+    color: #667788;
+    letter-spacing: 1px;
+    min-height: 18px;
+  }
+
+  /* 底部装饰粒子 */
+  .spark {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #d4af37;
+    border-radius: 50%;
+    opacity: 0;
+    animation: spark-float 4s ease-in-out infinite;
+  }
+
+  @keyframes spark-float {
+    0% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+
+    20% {
+      opacity: 0.8;
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(-120px);
+    }
+  }
+</style>
+</head>
+
+<body>
+  <!-- ── 加载画面 ── -->
+  <div id="loading-screen">
+    <img id="loading-logo" src="icons/Icon-192.png" alt="卧龙风云" />
+    <div id="loading-title">卧龙风云</div>
+    <div id="loading-subtitle">三国乱世，英雄辈出</div>
+    <div id="loading-bar-wrapper">
+      <div id="loading-bar"></div>
+    </div>
+    <div id="loading-status">正在加载游戏资源…</div>
+
+    <!-- 装饰粒子 -->
+    <span class="spark" style="left:20%;bottom:10%;animation-delay:0s"></span>
+    <span class="spark" style="left:35%;bottom:5%;animation-delay:0.8s"></span>
+    <span class="spark" style="left:50%;bottom:12%;animation-delay:1.6s"></span>
+    <span class="spark" style="left:65%;bottom:7%;animation-delay:2.4s"></span>
+    <span class="spark" style="left:80%;bottom:10%;animation-delay:3.2s"></span>
+  </div>
+  
+  <script>
+      // ── 加载进度 & 就绪检测 ──
+    const bar = document.getElementById('loading-bar');
+      const status = document.getElementById('loading-status');
+    let progress = 0;
+      let readyShown = false;
+
+    const messages = [
+      { at: 10, text: '正在初始化引擎…' },
+      { at: 30, text: '正在加载渲染器…' },
+      { at: 55, text: '正在准备游戏资源…' },
+      { at: 80, text: '即将进入三国世界…' },
+    ];
+
+      // 缓慢推进伪进度，到 90% 暂停等待 Flutter 就绪信号
+    const ticker = setInterval(() => {
+      if (progress < 90) {
+        progress += Math.random() * 2.5;
+        if (progress > 90) progress = 90;
+        bar.style.width = progress + '%';
+        for (const m of messages) {
+          if (progress >= m.at && status.textContent !== m.text) {
+            status.textContent = m.text;
+          }
+        }
+      }
+    }, 200);
+
+      /**
+       * Flutter 应用真正就绪（章节数据已加载）后调用。
+       * 由 Dart 端设置 window._flutterAppReady = true，
+       * 再由定时器检测触发，或由 flutter-first-frame 触发后轮询。
+       */
+        function onAppReady() {
+        if (readyShown) return;
+        readyShown = true;
+      clearInterval(ticker);
+      clearInterval(appReadyPoller);
+      bar.style.width = '100%';
+      status.textContent = '加载完成';
+        // 资源就绪后自动淡出 HTML 加载画面，进入 Flutter TitleScreen
+          setTimeout(() => {
+            // 标记用户已交互（允许音频播放等）
+            window._userInteracted = true;
+            const screen = document.getElementById('loading-screen');
+            screen.classList.add('fade-out');
+            setTimeout(() => screen.remove(), 600);
+          }, 400);
+        }
+
+        // 轮询检测 Flutter 应用就绪信号（由 Dart 端通过 JS interop 设置）
+        const appReadyPoller = setInterval(() => {
+          if (window._flutterAppReady === true) {
+            onAppReady();
+          }
+        }, 200);
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+        // 兜底：最多 60 秒后强制进入游戏（防止极端情况下永远卡住）
+    setTimeout(() => {
+      if (document.getElementById('loading-screen') && !readyShown) {
+        onAppReady();
+      }
+    }, 60000);
+    </script>
+</body>
+
+</html>

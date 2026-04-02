@@ -102,8 +102,8 @@ JWTSECRET=<your-jwt-secret>
 
 删除：
 ```dart
-static const cloudSecretId = "<TENCENT_SECRET_ID>";
-static const cloudSecretKey = "<TENCENT_SECRET_KEY>";
+static const cloudSecretId = "";
+static const cloudSecretKey = "";
 ```
 
 替换为后端中转：

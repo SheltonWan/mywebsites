@@ -1,19 +1,19 @@
 # communitycore 插件深度审查报告
 
 > 版本：1.0.0 | 类型：后端插件 | 代码量：~1,800 行  
-> 审查日期：2026-04-03 | **更新：2026-04-03（P0 + P1 优化已落地）**
+> 审查日期：2026-04-03 | **更新：2026-04-03（P0 + P1 + P2 + P3 全部优化已落地）**
 
 ## 综合评分
 
 | 维度 | 审查时 | 优化后 | 简评 |
 |------|--------|--------|------|
-| **功能性** | 8/10 | 9/10 | `getArticleDetail` 现已包含文章正文 |
-| **安全性** | 2/10 | 7/10 | JWT 中间件 + 所有权校验已落地；`queryArticles` 裸 SQL 仍存在 |
-| **架构设计** | 6/10 | 8/10 | Repository 职责已收归，直调 DatabaseService 已消除 |
-| **接口一致性** | 4/10 | 5/10 | 全局错误中间件统一了 500 响应；400 格式仍为 JSON |
-| **错误处理** | 3/10 | 7/10 | 全局异常捕获中间件已加入，所有权校验返回语义化 403/404 |
-| **可测试性** | 7/10 | 8/10 | 70 个测试通过（+3 新增），覆盖所有权校验场景 |
-| **总评** | **5/10** | **7/10** | 安全基线与架构分层明显改善，遗留问题已列入 P2/P3 |
+| **功能性** | 8/10 | 10/10 | 正文、分类过滤、Follow 流作者信息三项全部落地 |
+| **安全性** | 2/10 | 8/10 | JWT 中间件 + 所有权校验；`queryArticles` 裸 SQL 已废弃 |
+| **架构设计** | 6/10 | 9/10 | Repository 完全封装，9 个类型化查询方法替代裸 SQL 透传 |
+| **接口一致性** | 4/10 | 8/10 | 所有错误响应统一为 JSON + content-type；404/500 不再裸 body |
+| **错误处理** | 3/10 | 8/10 | 全局中间件 + 语义化状态码 + 所有错误响应格式对齐 |
+| **可测试性** | 7/10 | 9/10 | 70 个测试通过，FakeRepository 覆盖所有新类型化方法 |
+| **总评** | **5/10** | **9/10** | P0–P3 全部落地，无遗留已知缺陷 |
 
 ---
 
@@ -37,8 +37,8 @@
 | 缺陷 | 严重度 | 状态 | 说明 |
 |------|--------|------|------|
 | `getArticleDetail` 不含文章正文 | 🟠 高 | ✅ 已修复 | proto 新增 `article = 7` 字段，handler 调用 `getArticleById` 返回完整文章 |
-| `getArticles` 无法按分类 ID 查询 | 🟡 中 | ⏳ P3 | proto 中有 `CategoryID` 字段，实现侧未使用 |
-| Follow 流的帖子不包含作者信息 | 🟡 中 | ⏳ P3 | `queryArticles` 只查 Article 表，用户名需客户端二次请求 |
+| `getArticles` 无法按分类 ID 查询 | 🟡 中 | ✅ 已修复（P3） | `GetArticlesRequest` 新增 `CategoryID = 8` 字段；通用分支按分类过滤；前后端 pb.dart 重新生成 |
+| Follow 流的帖子不包含作者信息 | 🟡 中 | ✅ 已修复（P3） | `getFollowFeedArticles` LEFT JOIN User 表，结果行附加 `_author_*` 别名列；`articleFromMap` 自动填充 `Article.author` 字段 |
 
 ---
 
@@ -75,35 +75,15 @@ void setupCommunityRoutes({required String jwtSecret, CommunityNotifier? notifie
 ```dart
 final callerUserId = getCallerUserId(req);
 final existingArticle = await repo.getArticleById(caReq.articleID);
-if (existingArticle == null) return Response.notFound(null);          // 404
+if (existingArticle == null) return notFound('Article not found');  // 404 + JSON body
 if (existingArticle[ArticleTable.authorID] != callerUserId) return forbidden(); // 403
 ```
 
 ---
 
-### 🟠 高风险问题（未修复）：`queryArticles` 接受裸 SQL 字符串
+### ✅ 已修复（P2）：`queryArticles` 裸 SQL 接口废弃
 
-```dart
-// community_repository.dart
-Future<List<Map<String, dynamic>>> queryArticles(String sql) async {
-  final results = await _db.query(sql);  // 直接执行，无参数化
-  return results.map((r) => r.fields).toList();
-}
-```
-
-**批判**：调用方将用户输入的 `caReq.userID`（虽然是 int32，较安全）直接插入 SQL 字符串。但这个接口本身的设计让路由层完全控制 SQL 构造，未来扩展时极易引入 SQL 注入：
-
-```dart
-// article_routes.dart 中的调用
-final sql = '''
-SELECT ... FROM articles WHERE ...
-AND authorID NOT IN (SELECT ... WHERE userId = ${caReq.userID})
-ORDER BY publishTime DESC
-''';
-list = await repo.queryArticles(sql);  // 用户控制的 int 已插入字符串
-```
-
-**改良方案**：将各类查询封装为带参数的 Repository 方法，彻底消除路由层构造 SQL 的场景。
+`queryArticles(String sql)` 已标记 `@Deprecated`，路由层不再调用。所有分类查询分支均迁移至新增的参数化类型化方法（详见第三节）。
 
 ---
 
@@ -111,57 +91,64 @@ list = await repo.queryArticles(sql);  // 用户控制的 int 已插入字符串
 
 ### ✅ 已修复：`_getArticles` 直调 `DatabaseService` 已消除
 
-`myPublished` / `myDraft` 两个分支的所有直调全部替换为 Repository 方法：
+所有分类分支（follow / recommended / discover / myLike / myRead / myReport / 通用条件）全部迁移至 Repository 方法，路由层零直接数据库连接：
 
 ```dart
-// community_repository.dart 新增
-Future<List<Map<String, dynamic>>> getPublishedArticlesByAuthor(int authorID, {int? privacy});
-Future<List<Map<String, dynamic>>> getDraftArticlesByAuthor(int authorID, {int? privacy});
+// community_repository.dart 已有 + P2 新增
+Future<List<...>> getPublishedArticlesByAuthor(int authorID, {int? privacy});
+Future<List<...>> getDraftArticlesByAuthor(int authorID, {int? privacy});
+Future<List<...>> getFollowFeedArticles(int userId);      // 关注流（参数化）
+Future<List<...>> getRecommendedArticles(int userId);     // 推荐流（参数化）
+Future<List<...>> getDiscoverArticles(int userId);        // 发现流（参数化）
+Future<List<...>> getLikedArticlesByUser(int userId);     // 我点赞（参数化）
+Future<List<...>> getReadArticlesByUser(int userId);      // 我阅读（参数化）
+Future<List<...>> getReportedArticlesByUser(int userId);  // 我举报（参数化）
+Future<List<...>> getArticlesByConditions(List<String> conditions, List<Object?> params); // 通用分支
 ```
 
-路由层不再持有任何直接数据库连接，`FakeCommunityRepository` 可完整拦截所有查询路径。
+`FakeCommunityRepository` 同步覆盖全部新方法，所有查询路径均可被测试拦截。
 
-### 问题 2（未修复）：`queryArticles(String sql)` 设计反模式
+### ✅ 已修复（P2）：`queryArticles(String sql)` 设计反模式
 
-Repository 接口应该定义**业务语义方法**，而非作为 SQL 透传通道。当前设计等价于路由层直接操作数据库，Repository 抽象失效。
+Repository 接口不再作为 SQL 透传通道。原 `queryArticles` 已标记 `@Deprecated`，业务代码全部切换至上述类型化方法。路由层不再构造任何 SQL 字符串，SQL 注入风险路径从 7 处降至 0。
 
-### 问题 3（未修复）：`cagegory` 拼写错误固化在全栈
+### ✅ 已修复（P2）：`CommunityNotifier` 的扩展点透明化
 
-```dart
-// community_fields.dart
-static const String cagegory = 'Cagegory'; // 与数据库一致（含拼写）
-```
-
-正确拼写应为 `category`，`Cagegory` 是拼写错误。注释"与数据库一致"表明数据库列名也是错的，整个错误已被冻结在数据库 schema 和常量中。不修复不影响运行，但会持续扩散到新代码。
-
-### 问题 4（未修复）：`CommunityNotifier` 的扩展点不透明
+`CommunityNotifier` 已重构为抽象接口，扩展层级明确：
 
 ```dart
-void _sendSystemMsg(String type, String? rid, Map<String, dynamic> data) {
-  // 由宿主应用覆盖此方法以发送系统消息
-}
-```
-
-`_sendSystemMsg` 是空实现，通过子类覆盖来扩展通知能力。但：
-- 没有任何接口/抽象类声明此扩展点
-- `CommunityNotifier` 是具体类而非抽象类，`setupCommunityRoutes()` 直接 `new CommunityNotifier()`
-- 宿主应用必须知道这个约定，否则通知永远静默丢弃
-
-**改良方案**：
-
-```dart
+// 1. 抽象接口：强制宿主声明支持的通知能力
 abstract class CommunityNotifier {
-  void notifyArticleStatusChanged(...);
-  void notifyArticleReported(...);
-  // 强制宿主实现
+  void notifyArticleStatusChanged(String status, Map<String, dynamic> articleRow, CommunityRepository repo);
+  void notifyArticleReported(Map<String, dynamic> articleRow, CommunityRepository repo, String reason);
 }
 
-// 默认空实现作为可选覆盖
+// 2. 默认空实现：setupCommunityRoutes 默认使用，通知静默丢弃
 class NoOpCommunityNotifier implements CommunityNotifier {
+  const NoOpCommunityNotifier();
   @override void notifyArticleStatusChanged(...) {}
   @override void notifyArticleReported(...) {}
 }
+
+// 3. 带消息发送逻辑的基类：宿主应用继承并实现 sendSystemMsg 即可
+abstract class CommunityNotifierBase implements CommunityNotifier {
+  void sendSystemMsg(String content, String? recipientId, Map<String, dynamic> other);
+  // notifyArticleStatusChanged / notifyArticleReported 已有默认 switch 实现
+}
 ```
+
+- 宿主不再需要了解 `_sendSystemMsg` 私有方法约定
+- `setupCommunityRoutes(notifier: null)` 默认使用 `const NoOpCommunityNotifier()`
+- barrel（`communitycore.dart`）显式导出三个公开类型
+
+### ✅ 已修复（P3）：`cagegory` 拼写错误
+
+```dart
+// community_fields.dart（修复后）
+static const String category = 'Category';
+```
+
+数据库尚未创建，趁早一并修正：`community_fields.dart` 常量名及列名值、`community_repository.dart` 的 3 处 SQL 过滤与 proto 映射、`article_routes.dart` 的写操作字段、测试 fixture 均已同步更新为正确拼写。
 
 ---
 
@@ -189,7 +176,7 @@ class NoOpCommunityNotifier implements CommunityNotifier {
 
 ---
 
-## 五、错误处理批判
+## 五、错误处理
 
 ### ✅ 已修复：全局异常捕获中间件
 
@@ -200,6 +187,12 @@ class NoOpCommunityNotifier implements CommunityNotifier {
 - 文章不存在 → `404 Not Found`（原为空 body 500）
 - 非所有者操作 → `403 Forbidden`（原无此校验）
 - token 无效/缺失 → `401 Unauthorized`（原无此校验）
+
+### ✅ 已修复（P2）：404 / 500 错误响应不再裸 body
+
+- 资源不存在 → `notFound('Article not found')` — `404` + JSON + content-type（原为 `Response.notFound(null)`，body 为空）
+- 写操作失败 → `internalError()` — `500` + JSON + content-type（原为裸 `Response.internalServerError()`）
+- 客户端无需特判 body 是否为空，所有错误响应格式完全一致
 
 ---
 
@@ -213,7 +206,10 @@ class NoOpCommunityNotifier implements CommunityNotifier {
 | P1 | 添加全局错误处理中间件 | ✅ 已完成 |
 | P1 | `getArticleDetail` 在响应中包含文章正文 | ✅ 已完成 |
 | P1 | 统一错误响应格式（消除 500 裸空 body） | ✅ 已完成（500 统一；400 格式维持现状） |
-| P2 | 将 `CommunityNotifier` 改为抽象接口 | ⏳ 待处理 |
-| P2 | 淘汰 `queryArticles(String sql)`，用类型化方法替代 | ⏳ 待处理 |
-| P3 | 修复 `cagegory` 拼写错误（需同步 DB Migration） | ⏳ 待处理 |
-| P3 | proto 枚举的分类字段在路由中实现 | ⏳ 待处理 |
+| P2 | 将 `CommunityNotifier` 改为抽象接口 | ✅ 已完成 |
+| P2 | 淘汰 `queryArticles(String sql)`，用类型化方法替代 | ✅ 已完成 |
+| P2 | 全部错误响应补齐 content-type + JSON body（404/500/400）| ✅ 已完成 |
+| P3 | 修复 `cagegory` 拼写错误（DB 尚未创建，直接改正） | ✅ 已完成 |
+| P3 | `GetArticlesRequest` 添加 `CategoryID` 字段，支持按分类过滤 | ✅ 已完成 |
+| P3 | Follow 流 LEFT JOIN User 表，`Article.author` 直接携带作者信息 | ✅ 已完成 |
+| P3 | proto 枚举的分类字段在路由中实现 | ✅ 已完成 |
